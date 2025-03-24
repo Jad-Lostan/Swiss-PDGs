@@ -1,5 +1,5 @@
 # Synthetic low- and medium-voltage distribution grid models for Switzerland
-Welcome to our repository, where we share our synthetic geo-referenced models of Switzerland's low- and medium-voltage power distribution grids (PDGs). These models were obtained using the framework introduced by [A. Oneto et. al](https://doi.org/10.36227/techrxiv.24607662.v3), and stem from the meticulous analysis of publicly available data on power demand and transport infrastructure. With 879 medium-voltage grids and 34,920 low-voltage grids, our dataset represents all of Switzerland's power distribution landscape. We invite you to harness this rich dataset to explore, analyze, and contribute to a deeper understanding of large-scale power distribution systems.
+Welcome to our repository, where we share our synthetic geo-referenced models of Switzerland's low- and medium-voltage power distribution grids (PDGs). These models were obtained using the framework introduced by [A. Oneto et. al](https://doi.org/10.1016/j.segan.2025.101678), and stem from the meticulous analysis of publicly available data on power demand and transport infrastructure. With 879 medium-voltage grids and 34,920 low-voltage grids, our dataset represents all of Switzerland's power distribution landscape. We invite you to harness this rich dataset to explore, analyze, and contribute to a deeper understanding of large-scale power distribution systems.
 
 **When using the data, the article must be referenced and acknowledged**
 
@@ -178,4 +178,4 @@ The line types are shown below. For more details, go [here](https://pandapower.r
 ## References
 For a detailed description of the framework through which the data was generated and for citing it, please go to 
 
-[A. Oneto, B. Gjorgiev, F. Tettamanti, and G.Sansavini “Large-Scale Generation of Geo-Referenced Power Distribution Grids Using Open Data”, 2024 in TechRxiv.](https://doi.org/10.36227/techrxiv.24607662.v3)
+[A. Oneto, B. Gjorgiev, F. Tettamanti, and G.Sansavini “Large-scale generation of geo-referenced power distribution grids from open data with load clustering”, 2025 in Sustainable Energy, Grids and Networks.]([https://doi.org/10.36227/techrxiv.24607662.v3](https://doi.org/10.1016/j.segan.2025.101678))
