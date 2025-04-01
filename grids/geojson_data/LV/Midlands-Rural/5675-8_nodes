@@ -1,7 +1,8 @@
 {
 "type": "FeatureCollection",
+"name": "5675-8_nodes",
 "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::2056" } },
 "features": [
-{ "type": "Feature", "properties": { "osmid": 0, "x": 2554523.0654440015, "y": 1173149.4588520618, "el_dmd": "161.1697479263623", "Category": "Midlands-Rural", "consumers": "True", "label": "2625591369" }, "geometry": { "type": "Point", "coordinates": [ 2554523.065444001462311, 1173149.458852061768994 ] } }
+{ "type": "Feature", "properties": { "osmid": 0, "x": 2554523.0654440015, "y": 1173149.4588520618, "el_dmd": 0.16116974792636232, "Category": "Midlands-Rural", "consumers": "True", "label": "2625591369" }, "geometry": { "type": "Point", "coordinates": [ 2554523.065444001462311, 1173149.458852061768994 ] } }
 ]
 }
