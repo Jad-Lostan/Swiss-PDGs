@@ -4,7 +4,10 @@ Welcome to our repository, where we share our synthetic geo-referenced models of
 **When using the data, the article must be referenced and acknowledged**
 
 ## Files provided
-The datasets provide 3 types of data: geojson data, csv data for Matpower simulation and excel file for pandapower simulation in the folder '\grids'. Moreover, a supporting intermediate file with the electric consumption share of residential and commercial buildings at a 100m x 100m is provided in '\demand_shares'.
+The datasets include three types of data: GeoJSON files, CSV files for MATPOWER simulations, and an Excel file for pandapower simulations, all located in the 'grids' folder.
+
+Additionally, a supporting intermediate file is provided in the 'demand_shares' folder, containing the share of electrical consumption from residential and commercial buildings at a 100 m × 100 m resolution. This file excludes industrial consumption and can be used to simulate load profiles based on the residential and commercial composition of electrical demand.
+
 ### Geojson file
 The dataset has two main folders with medium-voltage (MV) and low-voltage (LV) grids in the folder '\grids'. All the PDGs are described by two geojson files: a nodes file and an edges file. These geojson files can be read by software such as ArcGIS and QGIS, with which you can easily visualize all the components and their attributes. Moreover, you can read this data as GeoDataFrame using Python GeoPandas. For instance, if you have two files named 'nodes.geojson' and 'edges.geojson', you can access their information with the following code:
 ```python
