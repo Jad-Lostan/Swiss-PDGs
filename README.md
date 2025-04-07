@@ -4,9 +4,9 @@ Welcome to our repository, where we share our synthetic geo-referenced models of
 **When using the data, the article must be referenced and acknowledged**
 
 ## Files provided
-The datasets provide 3 types of data: geojson data, csv data for Matpower simulation and excel file for pandapower simulation. 
+The datasets provide 3 types of data: geojson data, csv data for Matpower simulation and excel file for pandapower simulation in the folder '\grids'. Moreover, a supporting intermediate file with the electric consumption share of residential and commercial buildings at a 100m x 100m is provided in '\demand_shares'.
 ### Geojson file
-The dataset has two main folders with medium-voltage (MV) and low-voltage (LV) grids. All the PDGs are described by two geojson files: a nodes file and an edges file. These geojson files can be read by software such as ArcGIS and QGIS, with which you can easily visualize all the components and their attributes. Moreover, you can read this data as GeoDataFrame using Python GeoPandas. For instance, if you have two files named 'nodes.geojson' and 'edges.geojson', you can access their information with the following code:
+The dataset has two main folders with medium-voltage (MV) and low-voltage (LV) grids in the folder '\grids'. All the PDGs are described by two geojson files: a nodes file and an edges file. These geojson files can be read by software such as ArcGIS and QGIS, with which you can easily visualize all the components and their attributes. Moreover, you can read this data as GeoDataFrame using Python GeoPandas. For instance, if you have two files named 'nodes.geojson' and 'edges.geojson', you can access their information with the following code:
 ```python
 import geopandas as gpd
 nodes_gdf, edges_gdf = gpd.read_file('nodes.geojson'), gpd.read_file('edges.geojson')
@@ -24,7 +24,7 @@ In addition, the MV and LV folders have the following content:
 
 </div>
 
-Note that an edge and a node file define every grid. Hence, in the cases when node files do not have a matching edge file, it means that these demand nodes are then connected to the MV infrastructure. For more detail, check Section 3 of [A. Oneto et. al](https://doi.org/10.36227/techrxiv.24607662.v3).
+Note that an edge and a node file define every grid. Hence, in the cases when node files do not have a matching edge file, it means that these demand nodes are then connected to the MV infrastructure. For more detail, check Section 3 of [A. Oneto et. al](https://doi.org/10.1016/j.segan.2025.101678).
 
 <p align="center">
 <img width="500" alt="lvgrids" src="https://github.com/aeonetos/Swiss-PDGs/assets/101415556/309d8564-474e-4bf5-831b-67b1670a8485">
@@ -176,6 +176,6 @@ The line types are shown below. For more details, go [here](https://pandapower.r
 - load: the ratio of apparent power transferred in the line with s_nom in the steady state AC power flow analysis.
 
 ## References
-For a detailed description of the framework through which the data was generated and for citing it, please go to 
+When using this dataset, please cite the article that describes the model used for its generation:
 
-[A. Oneto, B. Gjorgiev, F. Tettamanti, and G.Sansavini “Large-scale generation of geo-referenced power distribution grids from open data with load clustering”, 2025 in Sustainable Energy, Grids and Networks.]([https://doi.org/10.36227/techrxiv.24607662.v3](https://doi.org/10.1016/j.segan.2025.101678))
+[A. Oneto, B. Gjorgiev, F. Tettamanti, and G.Sansavini “Large-scale generation of geo-referenced power distribution grids from open data with load clustering”, 2025 in Sustainable Energy, Grids and Networks.](https://doi.org/10.1016/j.segan.2025.101678)
