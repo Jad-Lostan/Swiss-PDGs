@@ -1,4 +1,6 @@
 # Synthetic low- and medium-voltage distribution grid models for Switzerland
+[![DOI](https://zenodo.org/badge/717508044.svg)](https://doi.org/10.5281/zenodo.15167588)
+
 Welcome to our repository, where we share our synthetic geo-referenced models of Switzerland's low- and medium-voltage power distribution grids (PDGs). These models were obtained using the framework introduced by [A. Oneto et. al](https://doi.org/10.1016/j.segan.2025.101678), and stem from the meticulous analysis of publicly available data on power demand and transport infrastructure. With 879 medium-voltage grids and 34,920 low-voltage grids, our dataset represents all of Switzerland's power distribution landscape. We invite you to harness this rich dataset to explore, analyze, and contribute to a deeper understanding of large-scale power distribution systems.
 
 **When using the data, the article must be referenced and acknowledged**
