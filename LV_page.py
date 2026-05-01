@@ -53,7 +53,7 @@ def lv_page():
                     # remove the nan value
                     mv_supplier_list = [x for x in mv_supplier_list if str(x) != 'nan']
                     st.write("This region is supplied by the following MV suppliers: ")
-                    st.write(*mv_supplier_list, sep=",")
+                    st.write(", ".join(map(str, mv_supplier_list)))
                 
             # create a submit button to show the map
             lv=None
