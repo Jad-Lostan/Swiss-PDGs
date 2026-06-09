@@ -1,335 +1,342 @@
-# Analyse experte des FFOR temporels
+# Expert Analysis of Temporal FFORs
 
-## 1. Comment lire les figures
+## 1. How to read the figures
 
-Le FFOR représente l'ensemble des couples `(P_pcc, Q_pcc)` que le réseau de
-distribution peut présenter au point de couplage commun (PCC), compte tenu des
-commandes disponibles et des contraintes du modèle.
+The FFOR represents all `(P_pcc, Q_pcc)` pairs that the distribution grid can
+present at the point of common coupling (PCC), given the available controls and
+the model constraints.
 
-La convention de signe du notebook est la suivante :
+The notebook uses the following sign convention:
 
-- `P_pcc > 0` : puissance active importée depuis le réseau amont ;
-- aller vers la gauche : diminuer l'import, grâce à plus de production locale
-  ou moins de consommation des pompes à chaleur ;
-- aller vers la droite : augmenter l'import, en écrêtant le PV ou en conservant
-  les pompes à chaleur à leur consommation maximale ;
-- aller vers le bas : les onduleurs fournissent du réactif localement
-  (`Q_pv > 0`), donc le PCC en importe moins ;
-- aller vers le haut : les onduleurs absorbent du réactif (`Q_pv < 0`), donc le
-  PCC doit en importer davantage.
+- `P_pcc > 0`: active power imported from the upstream grid;
+- moving left: reduce imports through greater local generation or lower
+  heat-pump consumption;
+- moving right: increase imports by curtailing PV or keeping heat pumps at
+  their maximum consumption;
+- moving down: inverters supply reactive power locally (`Q_pv > 0`), so the
+  PCC imports less of it;
+- moving up: inverters absorb reactive power (`Q_pv < 0`), so the PCC must
+  import more of it.
 
-### Construction du contour avec 72 directions
+### Building the contour with 72 directions
 
-Le solveur ne connaît pas directement la forme complète du FFOR. Il sait
-seulement chercher le point faisable le plus extrême dans une direction donnée.
-Le code définit donc 72 angles régulièrement espacés sur un tour complet :
+The solver does not directly know the complete shape of the FFOR. It can only
+find the most extreme feasible point in a given direction. The code therefore
+defines 72 angles evenly spaced over a full revolution:
 
-`phi = 0, 5, 10, ..., 355 degrés`
+`phi = 0, 5, 10, ..., 355 degrees`
 
-Pour chaque angle, il construit le vecteur :
+For each angle, it builds the vector:
 
 `(a, b) = (cos(phi), sin(phi))`
 
-puis Gurobi minimise la fonction :
+Gurobi then minimizes:
 
 `a * P_pcc + b * Q_pcc`
 
-sous toutes les contraintes électriques. Cette fonction définit une droite
-`a*P + b*Q = constante`, perpendiculaire au vecteur `(a,b)`. En la déplaçant
-jusqu'à ce qu'elle touche pour la première fois l'ensemble faisable, on obtient
-un point extrême, appelé point de support.
+subject to all electrical constraints. This function defines a line
+`a*P + b*Q = constant`, perpendicular to vector `(a,b)`. Moving this line until
+it first touches the feasible set produces an extreme point called a support
+point.
 
-Quelques directions permettent de voir immédiatement le mécanisme :
+Several directions illustrate the mechanism:
 
-- `phi = 0 deg` : minimiser `P_pcc`, donc trouver le point le plus à gauche ;
-- `phi = 90 deg` : minimiser `Q_pcc`, donc trouver le point le plus bas ;
-- `phi = 180 deg` : minimiser `-P_pcc`, donc maximiser `P_pcc` et trouver la
-  droite du FFOR ;
-- `phi = 270 deg` : minimiser `-Q_pcc`, donc maximiser `Q_pcc` et trouver le
-  point le plus haut ;
-- les angles intermédiaires recherchent les coins et les côtés obliques.
+- `phi = 0 deg`: minimize `P_pcc`, giving the leftmost point;
+- `phi = 90 deg`: minimize `Q_pcc`, giving the lowest point;
+- `phi = 180 deg`: minimize `-P_pcc`, thus maximize `P_pcc` and find the
+  right-hand side of the FFOR;
+- `phi = 270 deg`: minimize `-Q_pcc`, thus maximize `Q_pcc` and find the
+  highest point;
+- intermediate angles find corners and sloping sides.
 
-Les 72 points obtenus sont ensuite classés dans l'ordre des angles. Le code
-relie chaque point au suivant et relie le dernier au premier. Le contour affiché
-est donc une approximation polygonale de la frontière réelle. Les segments
-tracés ne correspondent pas à de nouvelles optimisations : ils sont seulement
-les droites dessinées entre deux solutions voisines.
+The 72 resulting points are sorted by angle. The code joins each point to the
+next and connects the last point to the first. The displayed contour is
+therefore a polygonal approximation of the true boundary. The plotted segments
+do not represent additional optimizations; they are simply straight lines
+drawn between neighboring solutions.
 
-Le nombre 72 n'est ni une propriété physique du réseau ni une contrainte du
-FFOR. C'est un choix numérique de résolution :
+The number 72 is neither a physical grid property nor an FFOR constraint. It is
+a numerical resolution choice:
 
-- `360 / 72 = 5 degrés` entre deux recherches ;
-- moins de directions accélère le calcul, mais donne un contour plus grossier
-  et peut manquer un petit chanfrein ;
-- davantage de directions améliore la description des parties courbes ou des
-  changements rapides de contrainte, mais augmente le temps de calcul ;
-- passer de 72 à 144 directions donne un pas de `2.5 degrés` et double
-  approximativement le nombre d'optimisations.
+- `360 / 72 = 5 degrees` between searches;
+- fewer directions make the calculation faster but produce a coarser contour
+  and may miss a small chamfer;
+- more directions improve the description of curved sections or rapid changes
+  in the binding constraint, but increase computation time;
+- increasing from 72 to 144 directions gives a `2.5-degree` step and roughly
+  doubles the number of optimizations.
 
-Pour la figure complète, les huit snapshots, les deux scénarios et les
-72 directions représentent `8 * 2 * 72 = 1152` optimisations, chacune suivie
-d'une validation AC. Le choix de 72 constitue donc un compromis raisonnable
-entre précision visuelle et durée de calcul.
+For the complete figure, eight snapshots, two scenarios, and 72 directions
+represent `8 * 2 * 72 = 1152` optimizations, each followed by AC validation.
+Thus, 72 is a reasonable compromise between visual accuracy and computation
+time.
 
-Comme le problème d'optimisation linéarisé est convexe, cette méthode décrit
-bien son enveloppe convexe. Une longue face indique généralement qu'une même
-contrainte reste dominante sur plusieurs directions. Un coin ou un chanfrein
-indique un changement de contrainte active. En revanche, la ligne entre deux
-points validés n'est pas elle-même testée point par point par le calcul AC :
-elle doit être comprise comme une interpolation graphique du contour.
+Because the linearized optimization problem is convex, this method describes
+its convex envelope well. A long face generally indicates that the same
+constraint remains binding over several directions. A corner or chamfer marks
+a change in the binding constraint. However, the line between two validated
+points is not itself tested point by point using the AC calculation; it should
+be understood as a graphical interpolation of the contour.
 
-## 2. Contraintes qui construisent les contours
+## 2. Constraints that shape the contours
 
-Pour chaque bus hors PCC, le modèle impose :
+For each bus other than the PCC, the model imposes:
 
 `P_bus = P_pv + P_hp + P_load`
 
 `Q_bus = Q_pv + Q_load`
 
-avec :
+with:
 
-- `0 <= P_pv <= P_pv_disponible` ;
-- `P_hp_min <= P_hp <= 0`, où `P_hp_min` est négatif ;
-- `-Q_pv_max <= Q_pv <= Q_pv_max` ;
-- `P_pv^2 + Q_pv^2 <= S_inv^2` ;
-- `0.90 <= V <= 1.10 p.u.` dans le modèle linéarisé ;
-- `P_ligne^2 + Q_ligne^2 <= S_ligne_max^2`.
+- `0 <= P_pv <= P_pv_available`;
+- `P_hp_min <= P_hp <= 0`, where `P_hp_min` is negative;
+- `-Q_pv_max <= Q_pv <= Q_pv_max`;
+- `P_pv^2 + Q_pv^2 <= S_inv^2`;
+- `0.90 <= V <= 1.10 p.u.` in the linearized model;
+- `P_line^2 + Q_line^2 <= S_line_max^2`.
 
-Le mode de charge actuel est `FFOR_LOAD_MODE = "fixed"`. Les charges actives et
-réactives ordinaires ne changent donc pas entre les huit cas. La variation
-temporelle vient essentiellement de la disponibilité PV et de la consommation
-maximale des pompes à chaleur.
+The current load mode is `FFOR_LOAD_MODE = "fixed"`. Ordinary active and
+reactive loads therefore do not change between the eight cases. Temporal
+variation mainly comes from PV availability and maximum heat-pump consumption.
 
-Les diagnostics montrent que :
+The diagnostics show that:
 
-- sans BelalpSolar, les limites réactives cumulées des PV locaux
-  (`+/-0.873 MVAr`) construisent la plupart des faces horizontales ;
-- avec BelalpSolar, la tension linéarisée à `0.90` ou `1.10 p.u.` devient souvent
-  la contrainte dominante des faces haute et basse ;
-- aucune ligne ne dépasse 100 % lors de la validation AC ; le maximum observé
-  est environ 76.8 % sur la ligne de raccordement de BelalpSolar ;
-- la contrainte circulaire des onduleurs n'est pas active aux quatre points
-  cardinaux diagnostiqués. Les bornes explicites de réactif et les tensions sont
-  plus restrictives ;
-- la validation AC donne des tensions minimales d'environ 0.977 à 0.990 p.u.,
-  alors que le modèle linéarisé atteint parfois 0.90 p.u. Le modèle linéarisé
-  est donc conservateur et déforme une partie du contour.
+- without BelalpSolar, the cumulative reactive limits of the local PV systems
+  (`+/-0.873 MVAr`) form most horizontal faces;
+- with BelalpSolar, the linearized voltage at `0.90` or `1.10 p.u.` often
+  becomes the binding constraint on the upper and lower faces;
+- no line exceeds 100% during AC validation; the observed maximum is about
+  76.8% on the BelalpSolar connection line;
+- the inverter capability circle is not binding at the four diagnosed
+  cardinal points. Explicit reactive limits and voltages are more restrictive;
+- AC validation gives minimum voltages of about 0.977 to 0.990 p.u., while the
+  linearized model sometimes reaches 0.90 p.u. The linearized model is
+  therefore conservative and distorts part of the contour.
 
-## 3. Capacité modélisée de BelalpSolar
+## 3. Modeled BelalpSolar capability
 
-BelalpSolar est modélisé avec :
+BelalpSolar is modeled with:
 
-- puissance installée : `8.1 MWp` ;
-- facteur de puissance minimal supposé : `cos(phi) = 0.95` ;
-- puissance apparente d'onduleur : `8.1 / 0.95 = 8.526 MVA` ;
-- capacité réactive fixe :
+- installed power: `8.1 MWp`;
+- assumed minimum power factor: `cos(phi) = 0.95`;
+- inverter apparent power: `8.1 / 0.95 = 8.526 MVA`;
+- fixed reactive capability:
   `Qmax = 8.1 * tan(arccos(0.95)) = 2.662 MVAr`.
 
-Le modèle autorise donc BelalpSolar entre `-2.662` et `+2.662 MVAr`, sous la
-limite circulaire de 8.526 MVA. Cette capacité est aussi disponible lorsque
-`P_pv = 0`, ce qui suppose un fonctionnement nocturne de l'onduleur en mode
-STATCOM. C'est une hypothèse technique forte, pas une conséquence automatique
-de la centrale.
+The model therefore allows BelalpSolar to operate between `-2.662` and
+`+2.662 MVAr`, subject to the 8.526 MVA capability circle. This capability is
+also available when `P_pv = 0`, which assumes nighttime inverter operation in
+STATCOM mode. This is a strong technical assumption, not an automatic property
+of the plant.
 
-Avec les PV locaux, la borne réactive agrégée théorique devient
-`+/-3.535 MVAr`. Cette valeur n'est pas toujours atteignable au PCC à cause des
-tensions et de la position électrique des onduleurs.
+Together with the local PV systems, the theoretical aggregate reactive bound
+becomes `+/-3.535 MVAr`. This value is not always reachable at the PCC because
+of voltage constraints and the electrical locations of the inverters.
 
-## 4. Points de départ
+## 4. Starting points
 
-Les croix ne sont ni le centre du FFOR ni un optimum. Elles représentent le
-calcul AC obtenu avec :
+The crosses are neither the center of the FFOR nor an optimum. They represent
+the AC calculation obtained with:
 
-- tout le PV disponible injecté ;
-- toutes les pompes à chaleur à leur consommation du snapshot ;
-- `Q_pv = 0` pour tous les onduleurs ;
-- les charges ordinaires fixes.
+- all available PV power injected;
+- all heat pumps at their snapshot consumption;
+- `Q_pv = 0` for all inverters;
+- fixed ordinary loads.
 
-| Cas | Sans BelalpSolar `(P,Q)` | Avec BelalpSolar `(P,Q)` | PV avec Belalp | HP |
+| Case | Without BelalpSolar `(P,Q)` | With BelalpSolar `(P,Q)` | PV with Belalp | HP |
 |---|---:|---:|---:|---:|
-| Été 07h | (8.539, 3.745) | (6.333, 3.711) | 2.899 MW | -0.333 MW |
-| Été 12h | (7.739, 3.734) | (3.285, 3.753) | 5.962 MW | -0.296 MW |
-| Été 18h | (9.209, 3.755) | (9.107, 3.749) | 0.131 MW | -0.318 MW |
-| Été 00h | (9.050, 3.752) | (9.050, 3.750) | 0 MW | -0.129 MW |
-| Hiver 07h | (12.964, 3.823) | (12.251, 3.792) | 0.756 MW | -4.043 MW |
-| Hiver 12h | (10.271, 3.771) | (5.440, 3.764) | 6.325 MW | -2.795 MW |
-| Hiver 18h | (12.323, 3.810) | (12.323, 3.807) | 0 MW | -3.350 MW |
-| Hiver 00h | (10.754, 3.780) | (10.754, 3.777) | 0 MW | -1.808 MW |
+| Summer 07:00 | (8.539, 3.745) | (6.333, 3.711) | 2.899 MW | -0.333 MW |
+| Summer 12:00 | (7.739, 3.734) | (3.285, 3.753) | 5.962 MW | -0.296 MW |
+| Summer 18:00 | (9.209, 3.755) | (9.107, 3.749) | 0.131 MW | -0.318 MW |
+| Summer 00:00 | (9.050, 3.752) | (9.050, 3.750) | 0 MW | -0.129 MW |
+| Winter 07:00 | (12.964, 3.823) | (12.251, 3.792) | 0.756 MW | -4.043 MW |
+| Winter 12:00 | (10.271, 3.771) | (5.440, 3.764) | 6.325 MW | -2.795 MW |
+| Winter 18:00 | (12.323, 3.810) | (12.323, 3.807) | 0 MW | -3.350 MW |
+| Winter 00:00 | (10.754, 3.780) | (10.754, 3.777) | 0 MW | -1.808 MW |
 
-La croix est proche du bord droit en hiver sans BelalpSolar parce que les
-pompes à chaleur consomment déjà presque au maximum. Elle est proche du bord
-gauche à midi avec BelalpSolar parce que toute la production disponible est
-déjà injectée.
+The cross is close to the right boundary in winter without BelalpSolar because
+the heat pumps already consume nearly their maximum power. It is close to the
+left boundary at noon with BelalpSolar because all available generation is
+already being injected.
 
-## 5. Analyse côté par côté
+## 5. Side-by-side analysis
 
-### Été 07h
+### Summer 07:00
 
-**Sans BelalpSolar, bleu.** Le départ est `(8.539, 3.745)`. La face gauche,
-jusqu'à `P = 8.200 MW`, vient surtout de l'arrêt des HP, tandis que le PV local
-reste à `0.709 MW`. La face droite à `P = 9.259 MW` combine PV écrêté à zéro et
-HP à `-0.333 MW`. Le bas à `Q = 2.862 MVAr` correspond à la fourniture maximale
-des PV locaux, `Q_pv = +0.873 MVAr`. Le haut à `Q = 4.635 MVAr` correspond à
-`Q_pv = -0.873 MVAr`. Le contour est presque rectangulaire car ni la tension ni
-les lignes ne dominent fortement.
+**Without BelalpSolar, blue.** The starting point is `(8.539, 3.745)`. The left
+face, down to `P = 8.200 MW`, mainly results from switching off the heat pumps
+while local PV remains at `0.709 MW`. The right face at `P = 9.259 MW` combines
+PV curtailment to zero with heat pumps at `-0.333 MW`. The bottom at
+`Q = 2.862 MVAr` corresponds to maximum local-PV supply,
+`Q_pv = +0.873 MVAr`. The top at `Q = 4.635 MVAr` corresponds to
+`Q_pv = -0.873 MVAr`. The contour is nearly rectangular because neither
+voltage nor line constraints are strongly dominant.
 
-**Avec BelalpSolar, vert.** Le départ se déplace à `(6.333, 3.711)` grâce aux
-`2.191 MW` de BelalpSolar. La face gauche à `P = 6.020 MW` est imposée par PV
-au maximum et HP arrêtées. La face droite revient à `P = 9.254 MW`, presque
-comme sans Belalp, car tous les PV peuvent être écrêtés à zéro. Le bas
-`Q = 1.196 MVAr` est limité par la tension haute linéarisée à `1.10 p.u.` avant
-que toute la capacité réactive théorique soit utilisée. Le haut
-`Q = 6.025 MVAr` touche la tension basse linéarisée à `0.90 p.u.`. Les deux
-diagonales traduisent le compromis : forte production active plus fourniture de
-réactif élève la tension, tandis que forte absorption de réactif l'abaisse.
+**With BelalpSolar, green.** The starting point moves to `(6.333, 3.711)` due
+to `2.191 MW` from BelalpSolar. The left face at `P = 6.020 MW` is imposed by
+maximum PV and stopped heat pumps. The right face returns to `P = 9.254 MW`,
+almost as without Belalp, because all PV can be curtailed to zero. The bottom
+at `Q = 1.196 MVAr` is limited by the linearized upper voltage of `1.10 p.u.`
+before all theoretical reactive capability is used. The top at
+`Q = 6.025 MVAr` reaches the linearized lower voltage of `0.90 p.u.`. The two
+diagonals express the tradeoff: high active generation plus reactive supply
+raises voltage, while high reactive absorption lowers it.
 
-### Été 12h
+### Summer 12:00
 
-**Sans BelalpSolar, bleu.** Le départ est `(7.739, 3.734)`. La gauche
-`P = 7.438 MW` est obtenue avec `1.462 MW` de PV et les HP arrêtées. La droite
-`P = 9.221 MW` vient du PV nul et des HP à `-0.296 MW`. Le bas
-`Q = 2.852 MVAr` et le haut `Q = 4.634 MVAr` sont presque exactement les bornes
-`Q_pv = +/-0.873 MVAr`. Le rectangle est donc principalement un produit des
-bornes actives PV/HP et de la borne réactive des PV locaux.
+**Without BelalpSolar, blue.** The starting point is `(7.739, 3.734)`. The left
+boundary at `P = 7.438 MW` is obtained with `1.462 MW` of PV and stopped heat
+pumps. The right boundary at `P = 9.221 MW` comes from zero PV and heat pumps
+at `-0.296 MW`. The bottom at `Q = 2.852 MVAr` and top at `Q = 4.634 MVAr`
+almost exactly match the `Q_pv = +/-0.873 MVAr` bounds. The rectangle is
+therefore mainly the product of active PV/heat-pump bounds and the local-PV
+reactive bound.
 
-**Avec BelalpSolar, vert.** Le départ devient `(3.285, 3.753)` avec `5.962 MW`
-de PV total, dont `4.500 MW` à Belalp. La gauche `P = 3.064 MW` correspond au PV
-maximal et aux HP arrêtées ; elle exige déjà de l'absorption réactive pour
-éviter la surtension. La droite `P = 9.216 MW` correspond à tous les PV
-écrêtés. Le bas `Q = 1.205 MVAr` touche `Vmax = 1.10 p.u.`. Le haut
-`Q = 7.394 MVAr` utilise la borne réactive totale
-`Q_pv = -3.535 MVAr`, dont Belalp à `-2.662 MVAr`, et touche aussi
-`Vmin = 0.90 p.u.`. La grande diagonale supérieure droite signifie qu'en
-augmentant l'import actif, la chute de tension augmente et laisse moins de
-marge pour absorber du réactif. La diagonale inférieure gauche signifie qu'à
-forte production active, il faut réduire l'injection réactive ou absorber du
-réactif pour rester sous la tension maximale.
+**With BelalpSolar, green.** The starting point becomes `(3.285, 3.753)` with
+`5.962 MW` of total PV, including `4.500 MW` at Belalp. The left boundary at
+`P = 3.064 MW` corresponds to maximum PV and stopped heat pumps; it already
+requires reactive absorption to avoid overvoltage. The right boundary at
+`P = 9.216 MW` corresponds to curtailing all PV. The bottom at
+`Q = 1.205 MVAr` reaches `Vmax = 1.10 p.u.`. The top at `Q = 7.394 MVAr` uses
+the total reactive bound `Q_pv = -3.535 MVAr`, including Belalp at
+`-2.662 MVAr`, and also reaches `Vmin = 0.90 p.u.`. The long upper-right
+diagonal means that increasing active imports increases voltage drop and
+leaves less margin to absorb reactive power. The lower-left diagonal means
+that, at high active generation, reactive injection must be reduced or
+reactive power absorbed to remain below the maximum voltage.
 
-### Été 18h
+### Summer 18:00
 
-**Sans BelalpSolar, bleu.** Le départ `(9.209, 3.755)` ne contient que
-`0.032 MW` de PV. La largeur active, de `8.886` à `9.242 MW`, provient donc
-presque entièrement de la modulation des HP entre zéro et `-0.318 MW`.
-Les faces basse et haute restent les bornes locales `Q_pv = +/-0.873 MVAr`,
-d'où `Q = 2.872` à `4.635 MVAr`.
+**Without BelalpSolar, blue.** The starting point `(9.209, 3.755)` contains
+only `0.032 MW` of PV. The active width from `8.886` to `9.242 MW` therefore
+comes almost entirely from modulating the heat pumps between zero and
+`-0.318 MW`. The lower and upper faces remain the local bounds
+`Q_pv = +/-0.873 MVAr`, giving `Q = 2.872` to `4.635 MVAr`.
 
-**Avec BelalpSolar, vert.** Le départ est `(9.107, 3.749)` et Belalp ne fournit
-que `0.099 MW`. La largeur active reste faible : `8.783` à `9.239 MW`.
-En revanche, le bas descend à `1.199 MVAr` grâce au réactif des onduleurs, avec
-la tension haute linéarisée active. Le haut est limité à `3.914 MVAr` par la
-tension basse linéarisée. Belalp injecte alors environ `+0.701 MVAr` pour
-soutenir son bus éloigné pendant que d'autres PV absorbent du réactif. Cette
-répartition géographique explique pourquoi la capacité agrégée ne se traduit
-pas par une simple extension symétrique vers le haut.
+**With BelalpSolar, green.** The starting point is `(9.107, 3.749)`, and Belalp
+supplies only `0.099 MW`. The active width remains small: `8.783` to
+`9.239 MW`. However, the bottom falls to `1.199 MVAr` due to inverter reactive
+power, with the linearized upper voltage binding. The top is limited to
+`3.914 MVAr` by the linearized lower voltage. Belalp then injects about
+`+0.701 MVAr` to support its remote bus while other PV systems absorb reactive
+power. This geographical allocation explains why aggregate capability does
+not produce a simple symmetrical upward extension.
 
-### Été 00h
+### Summer 00:00
 
-**Sans BelalpSolar, bleu.** Le départ est `(9.050, 3.752)`. Sans PV actif, la
-largeur `8.918` à `9.053 MW` vient uniquement des HP, limitées à `0.129 MW`.
-Les onduleurs PV locaux gardent néanmoins leur capacité réactive dans le
-modèle : le contour s'étend de `Q = 2.872` à `4.632 MVAr`.
+**Without BelalpSolar, blue.** The starting point is `(9.050, 3.752)`. With no
+active PV, the width from `8.918` to `9.053 MW` comes only from heat pumps,
+limited to `0.129 MW`. The model nevertheless retains the reactive capability
+of local PV inverters: the contour extends from `Q = 2.872` to `4.632 MVAr`.
 
-**Avec BelalpSolar, vert.** Le départ actif ne change pratiquement pas, car
-Belalp produit zéro. Le modèle lui laisse cependant fonctionner en compensateur
-réactif nocturne. Le bas atteint `1.244 MVAr` et touche `Vmax = 1.10 p.u.`.
-Le haut n'atteint que `3.818 MVAr` et touche `Vmin = 0.90 p.u.`. À ce point,
-Belalp injecte environ `+0.800 MVAr` pour tenir sa tension, tandis que les PV
-locaux absorbent davantage. La forme verte est donc principalement un FFOR
-réactif sous hypothèse STATCOM nocturne.
+**With BelalpSolar, green.** The active starting point is nearly unchanged
+because Belalp produces zero. However, the model allows it to operate as a
+nighttime reactive compensator. The bottom reaches `1.244 MVAr` and
+`Vmax = 1.10 p.u.`. The top reaches only `3.818 MVAr` and
+`Vmin = 0.90 p.u.`. At this point, Belalp injects about `+0.800 MVAr` to
+maintain its voltage while local PV systems absorb more. The green shape is
+therefore mainly a reactive FFOR under the nighttime STATCOM assumption.
 
-### Hiver 07h
+### Winter 07:00
 
-**Sans BelalpSolar, bleu.** Le départ `(12.964, 3.823)` est très proche de la
-droite parce que les HP consomment `4.043 MW`. La gauche `P = 8.855 MW` est
-obtenue en arrêtant ces HP ; le faible PV de `0.063 MW` joue peu. La droite
-`P = 13.028 MW` garde les HP au maximum et écrête le PV. Le bas
-`Q = 2.871 MVAr` vient de `Q_pv = +0.873 MVAr`. Au haut
-`Q = 4.682 MVAr`, `Q_pv = -0.873 MVAr` et la tension linéarisée atteint
-`0.90 p.u.` ; il faut déjà réduire la consommation HP à `3.545 MW`, ce qui
-forme le chanfrein supérieur droit.
+**Without BelalpSolar, blue.** The starting point `(12.964, 3.823)` is very
+close to the right because heat pumps consume `4.043 MW`. The left boundary at
+`P = 8.855 MW` is obtained by stopping them; the low PV output of `0.063 MW`
+has little effect. The right boundary at `P = 13.028 MW` keeps heat pumps at
+maximum and curtails PV. The bottom at `Q = 2.871 MVAr` comes from
+`Q_pv = +0.873 MVAr`. At the top, `Q = 4.682 MVAr`,
+`Q_pv = -0.873 MVAr`, and linearized voltage reaches `0.90 p.u.`; heat-pump
+consumption must already be reduced to `3.545 MW`, creating the upper-right
+chamfer.
 
-**Avec BelalpSolar, vert.** Le départ est `(12.251, 3.792)` avec `0.693 MW` de
-Belalp. La gauche `P = 8.147 MW` vient des HP arrêtées et de tout le PV injecté.
-La droite `P = 13.031 MW` vient du PV nul et des HP au maximum. Le bas
-`Q = 0.454 MVAr` exige presque toute la consommation HP afin de compenser
-l'effet de hausse de tension de l'injection réactive. Le haut
-`Q = 4.476 MVAr` exige au contraire l'arrêt presque complet des HP pour éviter
-la sous-tension. Les deux grandes diagonales vertes sont donc un couplage
-tension active-réactive, pas une diminution arbitraire de la capacité.
+**With BelalpSolar, green.** The starting point is `(12.251, 3.792)` with
+`0.693 MW` from Belalp. The left boundary at `P = 8.147 MW` comes from stopped
+heat pumps and full PV injection. The right boundary at `P = 13.031 MW` comes
+from zero PV and maximum heat-pump consumption. The bottom at `Q = 0.454 MVAr`
+requires almost all heat-pump consumption to offset the voltage-rise effect of
+reactive injection. Conversely, the top at `Q = 4.476 MVAr` requires heat
+pumps to be almost completely stopped to avoid undervoltage. The two long
+green diagonals therefore represent active-reactive voltage coupling, not an
+arbitrary reduction in capability.
 
-### Hiver 12h
+### Winter 12:00
 
-**Sans BelalpSolar, bleu.** Le départ `(10.271, 3.771)` combine `1.462 MW` de PV
-et `2.795 MW` de HP. La gauche `P = 7.438 MW` arrête les HP avec PV maximal.
-La droite `P = 11.759 MW` écrête le PV et garde les HP au maximum. Le bas
-`Q = 2.851 MVAr` est la fourniture réactive locale maximale. Le haut
-`Q = 4.677 MVAr` combine la borne d'absorption locale avec la tension
-linéarisée basse ; le coin supérieur droit est légèrement coupé.
+**Without BelalpSolar, blue.** The starting point `(10.271, 3.771)` combines
+`1.462 MW` of PV with `2.795 MW` of heat-pump consumption. The left boundary at
+`P = 7.438 MW` stops heat pumps with maximum PV. The right boundary at
+`P = 11.759 MW` curtails PV and keeps heat pumps at maximum. The bottom at
+`Q = 2.851 MVAr` is the maximum local reactive supply. The top at
+`Q = 4.677 MVAr` combines the local absorption bound with the linearized lower
+voltage; the upper-right corner is slightly clipped.
 
-**Avec BelalpSolar, vert.** Le départ se déplace à `(5.440, 3.764)` avec
-`6.325 MW` de PV, dont `4.863 MW` à Belalp. La gauche `P = 2.750 MW` arrête les
-HP et conserve presque tout le PV ; Belalp absorbe déjà son maximum de
-`2.662 MVAr` pour contrôler la tension. La droite `P = 11.760 MW` écrête tout
-le PV et garde les HP à `-2.795 MW`. Le bas `Q = 0.644 MVAr` touche
-`Vmax = 1.10 p.u.`. Le haut `Q = 7.420 MVAr` atteint la borne réactive totale
-`-3.535 MVAr` et `Vmin = 0.90 p.u.`. La ligne Belalp est la plus chargée, mais
-seulement à environ 76.8 % en AC : elle influence la forme sans constituer la
-limite thermique. C'est le cas où BelalpSolar agrandit le plus le FFOR.
+**With BelalpSolar, green.** The starting point moves to `(5.440, 3.764)` with
+`6.325 MW` of PV, including `4.863 MW` at Belalp. The left boundary at
+`P = 2.750 MW` stops heat pumps and retains almost all PV; Belalp already
+absorbs its `2.662 MVAr` maximum to control voltage. The right boundary at
+`P = 11.760 MW` curtails all PV and keeps heat pumps at `-2.795 MW`. The bottom
+at `Q = 0.644 MVAr` reaches `Vmax = 1.10 p.u.`. The top at `Q = 7.420 MVAr`
+reaches both the total reactive bound of `-3.535 MVAr` and
+`Vmin = 0.90 p.u.`. The Belalp line is the most heavily loaded, but only to
+about 76.8% in AC: it influences the shape without becoming the thermal limit.
+This is the case in which BelalpSolar enlarges the FFOR the most.
 
-### Hiver 18h
+### Winter 18:00
 
-**Sans BelalpSolar, bleu.** Le départ `(12.323, 3.810)` ne contient aucun PV
-actif. La largeur `8.917` à `12.322 MW` vient presque entièrement des HP
-(`3.350 MW`). Le bas `Q = 2.872 MVAr` est la fourniture maximale des onduleurs
-locaux. Le haut `Q = 4.679 MVAr` touche la borne d'absorption locale et la
-tension basse ; les HP doivent être légèrement réduites, d'où le coin coupé.
+**Without BelalpSolar, blue.** The starting point `(12.323, 3.810)` contains no
+active PV. The width from `8.917` to `12.322 MW` comes almost entirely from
+heat pumps (`3.350 MW`). The bottom at `Q = 2.872 MVAr` is the maximum supply
+from local inverters. The top at `Q = 4.679 MVAr` reaches the local absorption
+bound and the lower voltage; heat pumps must be slightly reduced, producing
+the clipped corner.
 
-**Avec BelalpSolar, vert.** Belalp ne produit pas d'actif, mais conserve sa
-fonction réactive supposée. La gauche `P = 8.916 MW` correspond aux HP arrêtées,
-la droite `P = 12.334 MW` aux HP au maximum. Le bas `Q = 0.560 MVAr` se trouve
-près de la droite car la consommation HP aide à contenir la hausse de tension
-causée par l'injection réactive. Le haut `Q = 3.818 MVAr` se trouve près de la
-gauche car l'absorption réactive et la consommation HP provoqueraient ensemble
-une sous-tension. La pente du contour exprime directement ce couplage.
+**With BelalpSolar, green.** Belalp produces no active power but retains its
+assumed reactive function. The left boundary at `P = 8.916 MW` corresponds to
+stopped heat pumps, and the right boundary at `P = 12.334 MW` to maximum heat
+pumps. The bottom at `Q = 0.560 MVAr` is near the right because heat-pump
+consumption helps contain the voltage rise caused by reactive injection. The
+top at `Q = 3.818 MVAr` is near the left because reactive absorption and
+heat-pump consumption would otherwise cause undervoltage together. The contour
+slope directly expresses this coupling.
 
-### Hiver 00h
+### Winter 00:00
 
-**Sans BelalpSolar, bleu.** Le départ est `(10.754, 3.780)`. La largeur
-`8.919` à `10.753 MW` correspond à la modulation de `1.808 MW` de HP. Les faces
-réactives restent proches de `Q = 2.872` et `4.660 MVAr`, avec un léger
-chanfrein de sous-tension en haut à droite.
+**Without BelalpSolar, blue.** The starting point is `(10.754, 3.780)`. The
+width from `8.919` to `10.753 MW` corresponds to modulating `1.808 MW` of heat
+pumps. The reactive faces remain close to `Q = 2.872` and `4.660 MVAr`, with a
+small undervoltage chamfer at the upper right.
 
-**Avec BelalpSolar, vert.** Le départ actif est identique, car le PV est nul.
-La gauche `P = 8.916 MW` arrête les HP ; la droite `P = 10.759 MW` les maintient
-au maximum. Le bas `Q = 0.852 MVAr` nécessite presque toute la consommation HP
-pour permettre l'injection réactive sans surtension. Le haut
-`Q = 3.818 MVAr` nécessite au contraire presque l'arrêt des HP pour éviter la
-sous-tension. Comme à 18h, la diagonale verte est la signature de la contrainte
-de tension et de l'hypothèse de réactif nocturne de BelalpSolar.
+**With BelalpSolar, green.** The active starting point is identical because PV
+output is zero. The left boundary at `P = 8.916 MW` stops the heat pumps; the
+right boundary at `P = 10.759 MW` keeps them at maximum. The bottom at
+`Q = 0.852 MVAr` requires almost all heat-pump consumption to permit reactive
+injection without overvoltage. Conversely, the top at `Q = 3.818 MVAr`
+requires heat pumps to be almost stopped to avoid undervoltage. As at 18:00,
+the green diagonal is the signature of the voltage constraint and the assumed
+nighttime reactive operation of BelalpSolar.
 
-## 6. Conclusions physiques
+## 6. Physical conclusions
 
-1. Les faces verticales sont principalement des saturations de puissance
-   active : PV maximal plus HP arrêtées à gauche, PV écrêté plus HP au maximum
-   à droite.
-2. Sans BelalpSolar, les faces horizontales sont surtout les bornes réactives
-   cumulées des PV locaux, `+/-0.873 MVAr`.
-3. Avec BelalpSolar, les faces obliques sont principalement créées par les
-   limites de tension linéarisées. Fournir du réactif et produire beaucoup de
-   puissance active augmente la tension ; absorber du réactif et consommer
-   beaucoup d'actif la diminue.
-4. Le point de départ est asymétrique par construction : PV au maximum, HP à
-   leur consommation du snapshot et réactif nul. Il ne doit pas être interprété
-   comme le centre du FFOR.
-5. Les résultats nocturnes avec BelalpSolar dépendent entièrement de
-   l'hypothèse que l'onduleur peut fonctionner en STATCOM sans production
-   solaire. Si cette fonction n'existe pas contractuellement ou techniquement,
-   il faut imposer `Q_pv = 0` lorsque `P_pv_disponible = 0`.
-6. Le décalage entre la tension linéarisée active à 0.90/1.10 p.u. et les
-   tensions AC réelles proches de 0.98/0.99 p.u. indique que les bords verts
-   sont conservateurs. Pour une interprétation opérationnelle, il faudrait
-   construire le contour avec une boucle AC ou recalibrer les sensibilités
-   autour de chaque snapshot.
+1. Vertical faces mainly represent active-power saturation: maximum PV plus
+   stopped heat pumps on the left, curtailed PV plus maximum heat pumps on the
+   right.
+2. Without BelalpSolar, horizontal faces mainly represent the cumulative
+   reactive bounds of local PV systems, `+/-0.873 MVAr`.
+3. With BelalpSolar, sloping faces are mainly created by linearized voltage
+   limits. Supplying reactive power while generating substantial active power
+   raises voltage; absorbing reactive power while consuming substantial active
+   power lowers it.
+4. The starting point is asymmetric by construction: maximum PV, heat pumps at
+   their snapshot consumption, and zero reactive power. It must not be
+   interpreted as the center of the FFOR.
+5. Nighttime results with BelalpSolar depend entirely on the assumption that
+   the inverter can operate as a STATCOM without solar generation. If this
+   function is not contractually or technically available, impose `Q_pv = 0`
+   whenever `P_pv_available = 0`.
+6. The difference between the binding linearized voltage at 0.90/1.10 p.u. and
+   actual AC voltages near 0.98/0.99 p.u. indicates that the green boundaries
+   are conservative. For operational interpretation, the contour should be
+   built with an AC loop or the sensitivities recalibrated around each
+   snapshot.
 
-Les valeurs détaillées utilisées dans cette analyse sont enregistrées dans
+The detailed values used in this analysis are stored in
 `FFOR_temporal_constraint_diagnostics.csv`.
